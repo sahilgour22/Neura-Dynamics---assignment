@@ -31,6 +31,7 @@ const createMockStore = () => {
         categories: ['electronics', 'clothing'],
         selectedProduct: null,
         loading: false,
+        categoriesLoading: false,
         error: null,
       },
       filters: {
@@ -58,6 +59,13 @@ describe('Search Integration', () => {
   let user
 
   beforeEach(() => {
+    // Mock fetch before creating store
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    )
     store = createMockStore()
     user = userEvent.setup()
   })

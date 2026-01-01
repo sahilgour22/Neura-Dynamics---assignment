@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
@@ -8,6 +8,14 @@ import ProductListingPage from '../../pages/ProductListingPage'
 import productsReducer from '../../store/slices/productsSlice'
 import filtersReducer from '../../store/slices/filtersSlice'
 import favoritesReducer from '../../store/slices/favoritesSlice'
+
+// Mock fetch
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([]),
+  })
+)
 
 const mockProducts = [
   { id: 1, title: 'Laptop Computer', category: 'electronics', price: 999.99 },
@@ -29,6 +37,7 @@ const createMockStore = () => {
         categories: ['electronics', 'clothing'],
         selectedProduct: null,
         loading: false,
+        categoriesLoading: false,
         error: null,
       },
       filters: {
@@ -58,6 +67,13 @@ describe('Filter Integration', () => {
   beforeEach(() => {
     store = createMockStore()
     user = userEvent.setup()
+    // Mock fetch to prevent actual API calls
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    )
   })
 
   it('should filter products by category', async () => {

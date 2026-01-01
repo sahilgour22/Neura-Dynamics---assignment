@@ -12,8 +12,11 @@ function ProductListingPage() {
   const error = useAppSelector((state) => state.products.error)
 
   useEffect(() => {
-    dispatch(fetchProducts())
-  }, [dispatch])
+    // Only fetch if we don't have products yet
+    if (products.length === 0) {
+      dispatch(fetchProducts())
+    }
+  }, [dispatch, products.length])
 
   if (loading && products.length === 0) {
     return (

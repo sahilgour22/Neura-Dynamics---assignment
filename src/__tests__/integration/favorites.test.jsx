@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Provider } from 'react-redux'
-import { BrowserRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { configureStore } from '@reduxjs/toolkit'
 import ProductDetailPage from '../../pages/ProductDetailPage'
 import FavoritesPage from '../../pages/FavoritesPage'
@@ -11,7 +11,12 @@ import filtersReducer from '../../store/slices/filtersSlice'
 import favoritesReducer from '../../store/slices/favoritesSlice'
 
 // Mock fetch
-global.fetch = vi.fn()
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({}),
+  })
+)
 
 const mockProduct = {
   id: 1,
@@ -36,6 +41,7 @@ const createMockStore = (initialFavorites = []) => {
         categories: [],
         selectedProduct: mockProduct,
         loading: false,
+        categoriesLoading: false,
         error: null,
       },
       filters: {
@@ -50,10 +56,16 @@ const createMockStore = (initialFavorites = []) => {
   })
 }
 
-const renderWithProviders = (component, store) => {
+const renderWithProviders = (component, store, initialEntries = ['/']) => {
   return render(
     <Provider store={store}>
-      <BrowserRouter>{component}</BrowserRouter>
+      <MemoryRouter initialEntries={initialEntries}>
+        <Routes>
+          <Route path="/product/:id" element={component} />
+          <Route path="/favorites" element={component} />
+          <Route path="*" element={<div>Not Found</div>} />
+        </Routes>
+      </MemoryRouter>
     </Provider>
   )
 }
@@ -63,12 +75,30 @@ describe('Favorites Integration', () => {
   let user
 
   beforeEach(() => {
+    // Mock fetch to return the product when fetchProductById is called
+    global.fetch = vi.fn((url) => {
+      if (url.includes('/products/1')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockProduct),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+    })
     store = createMockStore()
     user = userEvent.setup()
   })
 
   it('should add product to favorites from product detail page', async () => {
-    renderWithProviders(<ProductDetailPage />, store)
+    renderWithProviders(<ProductDetailPage />, store, ['/product/1'])
+
+    // Wait for product to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Product')).toBeInTheDocument()
+    })
 
     // Find and click add to favorites button
     const addButton = screen.getByLabelText(/add to favorites/i)
@@ -89,7 +119,12 @@ describe('Favorites Integration', () => {
 
   it('should remove product from favorites from product detail page', async () => {
     const storeWithFavorite = createMockStore([mockProduct])
-    renderWithProviders(<ProductDetailPage />, storeWithFavorite)
+    renderWithProviders(<ProductDetailPage />, storeWithFavorite, ['/product/1'])
+
+    // Wait for product to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Product')).toBeInTheDocument()
+    })
 
     // Button should show remove
     const removeButton = screen.getByLabelText(/remove from favorites/i)
@@ -109,7 +144,7 @@ describe('Favorites Integration', () => {
 
   it('should display favorites on favorites page', () => {
     const storeWithFavorites = createMockStore([mockProduct])
-    renderWithProviders(<FavoritesPage />, storeWithFavorites)
+    renderWithProviders(<FavoritesPage />, storeWithFavorites, ['/favorites'])
 
     expect(screen.getByText('Favorites (1)')).toBeInTheDocument()
     expect(screen.getByText('Test Product')).toBeInTheDocument()
@@ -117,7 +152,7 @@ describe('Favorites Integration', () => {
 
   it('should remove favorite from favorites page', async () => {
     const storeWithFavorites = createMockStore([mockProduct])
-    renderWithProviders(<FavoritesPage />, storeWithFavorites)
+    renderWithProviders(<FavoritesPage />, storeWithFavorites, ['/favorites'])
 
     expect(screen.getByText('Test Product')).toBeInTheDocument()
 
@@ -137,7 +172,12 @@ describe('Favorites Integration', () => {
 
   it('should not add duplicate products to favorites', async () => {
     const storeWithFavorite = createMockStore([mockProduct])
-    renderWithProviders(<ProductDetailPage />, storeWithFavorite)
+    renderWithProviders(<ProductDetailPage />, storeWithFavorite, ['/product/1'])
+
+    // Wait for product to load
+    await waitFor(() => {
+      expect(screen.getByText('Test Product')).toBeInTheDocument()
+    })
 
     // Try to add again (button should show remove)
     const removeButton = screen.getByLabelText(/remove from favorites/i)
@@ -150,7 +190,7 @@ describe('Favorites Integration', () => {
   })
 
   it('should show empty state when no favorites', () => {
-    renderWithProviders(<FavoritesPage />, store)
+    renderWithProviders(<FavoritesPage />, store, ['/favorites'])
 
     expect(screen.getByText(/You haven't added any favorites yet/i)).toBeInTheDocument()
   })

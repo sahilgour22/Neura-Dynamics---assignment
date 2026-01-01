@@ -19,6 +19,7 @@ describe('productsSlice', () => {
     categories: [],
     selectedProduct: null,
     loading: false,
+    categoriesLoading: false,
     error: null,
   }
 
@@ -89,6 +90,12 @@ describe('productsSlice', () => {
   })
 
   describe('fetchCategories', () => {
+    it('should handle pending state', () => {
+      const action = { type: fetchCategories.pending.type }
+      const state = productsReducer(initialState, action)
+      expect(state.categoriesLoading).toBe(true)
+    })
+
     it('should handle fulfilled state', () => {
       const mockCategories = ['electronics', 'jewelery']
       const action = {
@@ -96,8 +103,14 @@ describe('productsSlice', () => {
         payload: mockCategories,
       }
       const state = productsReducer(initialState, action)
-      expect(state.loading).toBe(false)
+      expect(state.categoriesLoading).toBe(false)
       expect(state.categories).toEqual(mockCategories)
+    })
+
+    it('should handle rejected state', () => {
+      const action = { type: fetchCategories.rejected.type }
+      const state = productsReducer(initialState, action)
+      expect(state.categoriesLoading).toBe(false)
     })
   })
 })
